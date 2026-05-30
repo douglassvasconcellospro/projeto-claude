@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Painel Financeiro — Demo</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;display:flex;min-height:100vh;}
@@ -308,12 +309,11 @@ tbody tr:hover td{background:#f9fafb;}
       </div>
       <div style="margin-top:16px;display:flex;gap:10px;">
         <select id="import-conta" style="flex:1;">
-          <option>Conta Corrente — Nubank</option>
-          <option>Conta Corrente — Itaú</option>
-          <option>Cartão Amex</option>
-          <option>Cartão Elo</option>
+          <option value="nubank">Nubank (.ofx)</option>
+          <option value="asaas">Asaas (.xlsx)</option>
+          <option value="outro">Outro banco (.csv)</option>
         </select>
-        <button class="btn bp" onclick="simularImport()">Importar</button>
+        <button class="btn bp" onclick="importarExtrato()">Importar</button>
       </div>
     </div>
     <div class="card">
@@ -834,40 +834,196 @@ function confirmarExclusao(id){
 }
 
 // ══════════════════════════════════════════════
-// IMPORTAR
+// IMPORTAR — NUBANK OFX + ASAAS XLSX
 // ══════════════════════════════════════════════
 function onFileSelected(input){
   if(input.files&&input.files[0]){
     document.getElementById('upload-label').textContent='📄 '+input.files[0].name;
+    // auto-detectar banco pelo nome/extensão
+    const nome = input.files[0].name.toLowerCase();
+    const sel = document.getElementById('import-conta');
+    if(nome.includes('nu_') || nome.endsWith('.ofx')) sel.value='nubank';
+    else if(nome.includes('asaas') || nome.endsWith('.xlsx')) sel.value='asaas';
   }
 }
 
-function simularImport(){
+// ── Categorização automática ──
+function categorizarNubank(memo, tipo){
+  const m = memo.toLowerCase();
+  if(tipo==='CREDIT'){
+    if(m.includes('crédito em conta') || m.includes('credito em conta')) return {cat:'Rendimentos',tipo:'entrada'};
+    if(m.includes('resgate rdb')) return {cat:'Rendimentos',tipo:'entrada'};
+    if(m.includes('asaas')) return {cat:'Transferência Asaas',tipo:'entrada'};
+    if(m.includes('suplementos') || m.includes('nutricionais') || m.includes('farmacia') || m.includes('farma')) return {cat:'Receita de Clientes',tipo:'entrada'};
+    if(m.includes('transferência recebida') || m.includes('transferencia recebida')) return {cat:'PIX Recebido',tipo:'entrada'};
+    return {cat:'Outros (entrada)',tipo:'entrada'};
+  } else {
+    if(m.includes('aplicação rdb') || m.includes('aplicacao rdb')) return {cat:'Investimentos',tipo:'saida'};
+    if(m.includes('resgate de empréstimo') || m.includes('emprestimo')) return {cat:'Empréstimo',tipo:'saida'};
+    if(m.includes('pagamento de fatura')) return {cat:'Fatura do Cartão',tipo:'saida'};
+    if(m.includes('compra no débito') || m.includes('compra no debito')) return {cat:'Compras',tipo:'saida'};
+    if(m.includes('lalamove') || m.includes('entrega') || m.includes('frete')) return {cat:'Logística',tipo:'saida'};
+    if(m.includes('mercado pago') || m.includes('marketplace')) return {cat:'Marketplace',tipo:'saida'};
+    if(m.includes('transferência enviada') || m.includes('transferencia enviada')) return {cat:'PIX Enviado',tipo:'saida'};
+    if(m.includes('débito em conta') || m.includes('debito em conta')) return {cat:'Outros (saída)',tipo:'saida'};
+    return {cat:'Outros (saída)',tipo:'saida'};
+  }
+}
+
+function categorizarAsaas(tipoTrn, descricao){
+  const t = tipoTrn.toLowerCase();
+  const d = descricao.toLowerCase();
+  if(t.includes('cobrança recebida') || t.includes('cobranca recebida')){
+    if(d.includes('consultoria')) return {cat:'Consultoria',tipo:'entrada'};
+    return {cat:'Mensalidade',tipo:'entrada'};
+  }
+  if(t.includes('taxa')) return {cat:'Taxas Asaas',tipo:'saida'};
+  if(t.includes('pix') || t.includes('transação via pix')) return {cat:'PIX Enviado',tipo:'saida'};
+  if(t.includes('transferência') || t.includes('transferencia')) return {cat:'PIX Enviado',tipo:'saida'};
+  return {cat:'Outros (saída)',tipo:'saida'};
+}
+
+// ── Parser OFX (Nubank) ──
+function parseOFX(texto){
+  const transacoes = [];
+  const matches = texto.matchAll(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/g);
+  for(const m of matches){
+    const bloco = m[1];
+    const get = (tag) => {
+      const r = bloco.match(new RegExp(`<${tag}>([^<]+)`));
+      return r ? r[1].trim() : '';
+    };
+    const trntype = get('TRNTYPE');
+    const dtposted = get('DTPOSTED');
+    const trnamt = parseFloat(get('TRNAMT'));
+    const memo = get('MEMO');
+    // formatar data: 20260504 -> 04/05/2026
+    const ano=dtposted.slice(0,4), mes=dtposted.slice(4,6), dia=dtposted.slice(6,8);
+    const data=`${dia}/${mes}/${ano}`;
+    const mesRef=`${ano}-${mes}`;
+    const {cat, tipo} = categorizarNubank(memo, trntype);
+    transacoes.push({id:nextId++, tipo, desc:memo.length>80?memo.slice(0,80)+'…':memo, cat, data, mes:mesRef, valor:Math.abs(trnamt), banco:'Nubank'});
+  }
+  return transacoes;
+}
+
+// ── Parser XLSX (Asaas) ──
+function parseAsaas(arquivo, callback){
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target.result);
+    const wb = XLSX.read(data, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    const transacoes = [];
+    // encontrar linha de cabeçalho
+    let headerIdx = rows.findIndex(r => r[0]==='Data' || (r[0]&&String(r[0]).includes('Data')));
+    if(headerIdx<0) headerIdx=2;
+    for(let i=headerIdx+1; i<rows.length; i++){
+      const row = rows[i];
+      if(!row[0] || !row[5]) continue; // sem data ou valor
+      const dataRaw = String(row[0]); // dd/mm/yyyy
+      const tipoTrn = String(row[2]||'');
+      const descricao = String(row[4]||'');
+      const valor = parseFloat(row[5]);
+      if(isNaN(valor)) continue;
+      // pular saldo inicial/final
+      if(descricao.toLowerCase().includes('saldo')) continue;
+      // data -> mes ref
+      const partes = dataRaw.split('/');
+      const mesRef = partes.length===3 ? `${partes[2]}-${partes[1]}` : '2026-05';
+      const {cat, tipo} = categorizarAsaas(tipoTrn, descricao);
+      transacoes.push({id:nextId++, tipo, desc:descricao.length>80?descricao.slice(0,80)+'…':descricao, cat, data:dataRaw, mes:mesRef, valor:Math.abs(valor), banco:'Asaas'});
+    }
+    callback(transacoes);
+  };
+  reader.readAsArrayBuffer(arquivo);
+}
+
+// ── Função principal de importação ──
+function importarExtrato(){
+  const fileInput = document.getElementById('file-input');
+  const banco = document.getElementById('import-conta').value;
+  const arquivo = fileInput.files[0];
+  if(!arquivo){ toast('Selecione um arquivo primeiro','erro'); return; }
+
   const prog=document.getElementById('import-progress');
   const fill=document.getElementById('import-fill');
   const status=document.getElementById('import-status');
-  prog.style.display='block'; fill.style.width='0%';
+  prog.style.display='block'; fill.style.width='10%';
   status.textContent='Lendo arquivo...';
-  let p=0;
-  const iv=setInterval(()=>{
-    p+=Math.random()*18+5;
-    if(p>=100){p=100;clearInterval(iv);
-      status.textContent='✓ 34 registros importados com sucesso!';
-      const conta=document.getElementById('import-conta').value;
+
+  function finalizarImport(transacoes){
+    fill.style.width='70%';
+    status.textContent='Categorizando lançamentos...';
+    setTimeout(()=>{
+      // adicionar ao array principal (sem duplicar por fitid/desc+data)
+      const jaExiste = new Set(LANCS.map(l=>`${l.data}|${l.desc}|${l.valor}`));
+      const novos = transacoes.filter(t=>!jaExiste.has(`${t.data}|${t.desc}|${t.valor}`));
+      LANCS.unshift(...novos);
+      fill.style.width='100%';
+      status.textContent=`✓ ${novos.length} lançamentos importados e categorizados!`;
+      // registrar no histórico
       const hoje=new Date();
       const d=`${String(hoje.getDate()).padStart(2,'0')}/${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`;
-      const arquivo=document.getElementById('file-input').files[0]?.name||'extrato.csv';
       const tbody=document.getElementById('tbody-import');
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${d}</td><td>${arquivo}</td><td>${conta.split('—')[1]?.trim()||conta}</td><td>${Math.floor(Math.random()*20)+15}</td><td><span class="badge verde">✓ Importado</span></td>`;
+      const bancNome = banco==='nubank'?'Nubank':banco==='asaas'?'Asaas':'Outro';
+      tr.innerHTML=`<td>${d}</td><td>${arquivo.name}</td><td>${bancNome}</td><td>${novos.length}</td><td><span class="badge verde">✓ Importado</span></td>`;
       tbody.insertBefore(tr,tbody.firstChild);
-      toast('Extrato importado com sucesso!','sucesso');
-    }
-    fill.style.width=p+'%';
-    if(p<40)status.textContent='Lendo arquivo...';
-    else if(p<70)status.textContent='Processando transações...';
-    else if(p<100)status.textContent='Categorizando lançamentos...';
-  },120);
+      filtrarLanc();
+      toast(`${novos.length} lançamentos importados com sucesso!`,'sucesso');
+      // mostrar resumo
+      const entradas = novos.filter(t=>t.tipo==='entrada');
+      const saidas = novos.filter(t=>t.tipo==='saida');
+      const totE = entradas.reduce((s,t)=>s+t.valor,0);
+      const totS = saidas.reduce((s,t)=>s+t.valor,0);
+      setTimeout(()=>abrirModal('Resumo da Importação',`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div style="background:#f0fdf4;border-radius:10px;padding:14px;border-left:3px solid #10b981;">
+            <div style="font-size:11px;color:#6b7280;font-weight:600;">ENTRADAS</div>
+            <div style="font-size:18px;font-weight:700;color:#065f46;margin-top:4px;">${fmt(totE)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">${entradas.length} lançamentos</div>
+          </div>
+          <div style="background:#fef2f2;border-radius:10px;padding:14px;border-left:3px solid #ef4444;">
+            <div style="font-size:11px;color:#6b7280;font-weight:600;">SAÍDAS</div>
+            <div style="font-size:18px;font-weight:700;color:#991b1b;margin-top:4px;">${fmt(totS)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">${saidas.length} lançamentos</div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:#374151;margin-bottom:8px;font-weight:600;">Categorias detectadas:</div>
+        <div style="max-height:200px;overflow-y:auto;">
+          ${[...new Set(novos.map(t=>t.cat))].map(cat=>{
+            const qtd=novos.filter(t=>t.cat===cat).length;
+            const tot=novos.filter(t=>t.cat===cat).reduce((s,t)=>s+t.valor,0);
+            return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:12px;">
+              <span style="color:#374151;">${cat} <span style="color:#9ca3af;">(${qtd})</span></span>
+              <span style="font-weight:600;">${fmt(tot)}</span>
+            </div>`;
+          }).join('')}
+        </div>`,
+        `<button class="btn bp" onclick="fecharModal()">Ok, ver lançamentos</button>`
+      ),500);
+    },600);
+  }
+
+  if(banco==='nubank' || arquivo.name.toLowerCase().endsWith('.ofx')){
+    fill.style.width='40%';
+    status.textContent='Processando OFX Nubank...';
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const transacoes = parseOFX(e.target.result);
+      finalizarImport(transacoes);
+    };
+    reader.readAsText(arquivo, 'UTF-8');
+  } else if(banco==='asaas' || arquivo.name.toLowerCase().endsWith('.xlsx')){
+    fill.style.width='40%';
+    status.textContent='Processando XLSX Asaas...';
+    parseAsaas(arquivo, finalizarImport);
+  } else {
+    toast('Formato não reconhecido. Use .ofx (Nubank) ou .xlsx (Asaas)','erro');
+    prog.style.display='none';
+  }
 }
 
 // ══════════════════════════════════════════════
