@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/painel-demo.html" },
+    { "source": "/gestao", "destination": "/gestao-clientes.html" }
+  ]
+}
