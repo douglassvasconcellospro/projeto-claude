@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Clientes & Leads</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3350;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffd93d;
+    --text: #e8eaf0;
+    --text2: #8b92b0;
+    --green: #00d4aa;
+    --red: #ff6b6b;
+    --yellow: #ffd93d;
+    --blue: #4d9fff;
+    --purple: #a78bfa;
+    --orange: #fb923c;
+    --radius: 14px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    position: fixed; top: 0; left: 0;
+    width: 230px; height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 24px 0; z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 0 20px 28px;
+    font-size: 17px; font-weight: 700;
+    color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-logo span { font-size: 22px; }
+  .nav-section { padding: 0 12px 8px; font-size: 10px; font-weight: 700;
+    color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; cursor: pointer;
+    font-size: 13.5px; color: var(--text2);
+    border-radius: 8px; margin: 1px 8px;
+    transition: all .18s;
+  }
+  .nav-item:hover, .nav-item.active {
+    background: rgba(108,99,255,.15);
+    color: var(--accent);
+  }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-footer {
+    margin-top: auto; padding: 16px 20px;
+    font-size: 12px; color: var(--text2);
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-footer .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+    margin-right: 10px;
+  }
+  .sidebar-footer .user { display: flex; align-items: center; }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: 230px;
+    padding: 32px 36px;
+    max-width: 1400px;
+  }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 32px;
+  }
+  .page-title { font-size: 26px; font-weight: 700; }
+  .page-subtitle { color: var(--text2); font-size: 13.5px; margin-top: 4px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn {
+    padding: 9px 18px; border-radius: 9px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: all .18s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #5a52e0; }
+  .btn-outline {
+    background: transparent; color: var(--text2);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px; margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px;
+    position: relative; overflow: hidden;
+    transition: transform .18s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 4px; height: 100%;
+  }
+  .kpi-card.green::before { background: var(--green); }
+  .kpi-card.purple::before { background: var(--purple); }
+  .kpi-card.yellow::before { background: var(--yellow); }
+  .kpi-card.red::before { background: var(--red); }
+  .kpi-card.blue::before { background: var(--blue); }
+  .kpi-card.orange::before { background: var(--orange); }
+  .kpi-label { font-size: 11.5px; font-weight: 600; color: var(--text2);
+    text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
+  .kpi-value { font-size: 32px; font-weight: 800; line-height: 1; }
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.purple { color: var(--purple); }
+  .kpi-value.yellow { color: var(--yellow); }
+  .kpi-value.red { color: var(--red); }
+  .kpi-value.blue { color: var(--blue); }
+  .kpi-value.orange { color: var(--orange); }
+  .kpi-sub { font-size: 11.5px; color: var(--text2); margin-top: 6px; }
+  .kpi-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; margin-top: 8px;
+  }
+  .kpi-badge.up { background: rgba(0,212,170,.15); color: var(--green); }
+  .kpi-badge.down { background: rgba(255,107,107,.15); color: var(--red); }
+
+  /* ── CHARTS ROW ── */
+  .charts-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 18px; margin-bottom: 28px;
+  }
+  .chart-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px;
+  }
+  .chart-card.wide { grid-column: span 2; }
+  .chart-title {
+    font-size: 13px; font-weight: 700; margin-bottom: 18px;
+    color: var(--text);
+  }
+  .chart-title span { color: var(--text2); font-weight: 400; font-size: 12px; margin-left: 6px; }
+  .chart-wrap { position: relative; height: 200px; }
+
+  /* ── FUNIL ── */
+  .funnel-wrap {
+    display: flex; flex-direction: column; gap: 8px; padding-top: 4px;
+  }
+  .funnel-step {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .funnel-label { font-size: 12px; color: var(--text2); width: 160px; flex-shrink: 0; }
+  .funnel-bar-wrap { flex: 1; background: var(--bg3); border-radius: 6px; height: 28px; overflow: hidden; }
+  .funnel-bar { height: 100%; border-radius: 6px; display: flex; align-items: center;
+    padding-left: 12px; font-size: 12px; font-weight: 700; color: #fff;
+    transition: width .6s ease; }
+  .funnel-count { font-size: 12px; font-weight: 700; width: 28px; text-align: right; color: var(--text2); }
+
+  /* ── ALERTAS ROW ── */
+  .alerts-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 28px;
+  }
+  .alert-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px;
+  }
+  .alert-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .alert-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg3); transition: all .18s;
+    cursor: pointer;
+  }
+  .alert-item:hover { border-color: var(--accent); }
+  .alert-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .alert-info { flex: 1; }
+  .alert-name { font-size: 13px; font-weight: 600; }
+  .alert-detail { font-size: 11.5px; color: var(--text2); margin-top: 2px; }
+  .alert-tag {
+    font-size: 10.5px; font-weight: 700; padding: 3px 9px;
+    border-radius: 20px; flex-shrink: 0;
+  }
+
+  /* ── CONTRATOS ── */
+  .contratos-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px; margin-bottom: 28px;
+  }
+  .contrato-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    transition: all .2s; cursor: pointer;
+    display: flex; flex-direction: column;
+  }
+  .contrato-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+
+  /* Topo colorido do card */
+  .card-header {
+    padding: 18px 20px 14px;
+    display: flex; align-items: center; gap: 14px;
+    position: relative;
+  }
+  .card-header-bg {
+    position: absolute; inset: 0; opacity: .08;
+  }
+  .contrato-avatar {
+    width: 46px; height: 46px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 800; flex-shrink: 0;
+    position: relative; z-index: 1;
+  }
+  .card-header-info { flex: 1; position: relative; z-index: 1; min-width: 0; }
+  .contrato-name { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contrato-prog { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .card-dias-badge {
+    position: relative; z-index: 1; flex-shrink: 0;
+    font-size: 11px; font-weight: 800; padding: 4px 10px;
+    border-radius: 20px; text-align: center; line-height: 1.3;
+  }
+
+  /* Progresso */
+  .card-progress { padding: 0 20px 14px; }
+  .progress-label { display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+  .progress-bar { height: 5px; background: var(--bg3); border-radius: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 10px; transition: width .6s; }
+
+  /* Linha de métricas */
+  .card-metrics {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .card-metric {
+    padding: 11px 14px; text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .card-metric:last-child { border-right: none; }
+  .card-metric-label { font-size: 9.5px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
+  .card-metric-val { font-size: 14px; font-weight: 800; margin-top: 2px; }
+
+  /* Tags de status */
+  .card-footer { padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 10.5px; font-weight: 600; padding: 4px 10px;
+    border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  /* Compatibilidade renovações */
+  .contrato-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 0; }
+  .contrato-stat { padding: 8px 10px; background: var(--bg3); border-radius: 8px; }
+  .contrato-stat-label { font-size: 10px; color: var(--text2); font-weight: 600; text-transform: uppercase; }
+  .contrato-stat-val { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .progress-wrap { margin: 12px 20px 4px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 14px; }
+
+  /* ── TABLE ── */
+  .table-section {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 28px;
+  }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px; border-bottom: 1px solid var(--border);
+  }
+  .table-title { font-size: 14px; font-weight: 700; }
+  .table-filters { display: flex; gap: 8px; }
+  .filter-btn {
+    padding: 5px 13px; border-radius: 20px; font-size: 11.5px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: transparent;
+    color: var(--text2); transition: all .15s;
+  }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 12px 16px; font-size: 11px; font-weight: 700;
+    color: var(--text2); text-transform: uppercase; letter-spacing: .5px;
+    text-align: left; background: var(--bg3); border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .14s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); }
+  tbody td { padding: 13px 16px; font-size: 13px; }
+  .td-name { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .td-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .sinal-verde { background: rgba(0,212,170,.12); color: var(--green); }
+  .sinal-alert { background: rgba(255,107,107,.12); color: var(--red); }
+  .foto-badge { font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+  .status-select { font-family: inherit; appearance: none; -webkit-appearance: none; text-align: center; }
+
+  /* ── SEARCH ── */
+  .search-wrap { position: relative; }
+  .search-input {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 9px; padding: 8px 14px 8px 36px;
+    font-size: 13px; width: 220px; outline: none; transition: border .18s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text2); font-size: 14px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.65); z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 18px; padding: 32px; width: 560px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,.6);
+  }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between; }
+  .modal-close { cursor: pointer; color: var(--text2); font-size: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: span 2; }
+  .form-label { font-size: 11.5px; font-weight: 600; color: var(--text2);
+    text-transform: uppercase; letter-spacing: .5px; }
+  .form-input, .form-select, .form-textarea {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 9px; padding: 10px 13px;
+    font-size: 13px; outline: none; transition: border .18s;
+    font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--accent);
+  }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* ── EMPTY ── */
+  .empty-state { text-align: center; padding: 48px; color: var(--text2); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* ── SCROLL ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1200px) {
+    .charts-row { grid-template-columns: 1fr 1fr; }
+    .chart-card.wide { grid-column: span 2; }
+  }
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 20px; }
+    .charts-row { grid-template-columns: 1fr; }
+    .alerts-row { grid-template-columns: 1fr; }
+  }
+
+  /* ── TOOLTIP ── */
+  [data-tip] { position: relative; cursor: pointer; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: #000; color: #fff; font-size: 11px;
+    padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+    z-index: 999; pointer-events: none;
+  }
+
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+
+  /* ── CONFIGURAÇÕES ── */
+  .config-section {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px 26px;
+    margin-bottom: 20px;
+  }
+  .config-section-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .config-section-desc { font-size: 12.5px; color: var(--text2); margin-bottom: 18px; line-height: 1.5; }
+  .semanas-toggle { display: flex; gap: 10px; margin-bottom: 14px; }
+  .semanas-btn {
+    padding: 10px 28px; border-radius: 10px; font-size: 14px; font-weight: 700;
+    cursor: pointer; border: 2px solid var(--border); background: var(--bg3);
+    color: var(--text2); transition: all .18s;
+  }
+  .semanas-btn.active { border-color: var(--accent); background: rgba(108,99,255,.15); color: var(--accent); }
+  .semanas-btn:hover:not(.active) { border-color: var(--text2); color: var(--text); }
+  .config-info { font-size: 12px; color: var(--text2); padding: 10px 14px;
+    background: var(--bg3); border-radius: 8px; }
+  .config-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; min-height: 36px; }
+  .config-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 20px;
+    background: var(--bg3); border: 1px solid var(--border);
+    font-size: 13px; font-weight: 600;
+  }
+  .config-tag-del {
+    cursor: pointer; color: var(--text2); font-size: 14px; line-height: 1;
+    transition: color .15s;
+  }
+  .config-tag-del:hover { color: var(--red); }
+  .config-add-row { display: flex; gap: 10px; align-items: center; }
+  .config-add-row .form-input { flex: 1; }
+
+  /* ── KPI CLICÁVEL ── */
+  .kpi-card.clickable { cursor: pointer; }
+  .kpi-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(108,99,255,.2); }
+
+  /* Notification dot */
+  .notif {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--red); margin-left: 6px; vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar">
+  <div class="sidebar-logo"><span>💪</span> ConsultoriaPRO</div>
+
+  <div class="nav-section">Principal</div>
+  <div class="nav-item active" onclick="showView('dashboard')">
+    <span class="icon">📊</span> Dashboard
+  </div>
+  <div class="nav-item" onclick="showView('clientes')">
+    <span class="icon">✅</span> Clientes Ativos
+  </div>
+  <div class="nav-item" onclick="showView('tabela')">
+    <span class="icon">📋</span> Todos os Registros
+  </div>
+
+  <div class="nav-section" style="margin-top:12px">Análises</div>
+  <div class="nav-item" onclick="showView('alertas')">
+    <span class="icon">⚠️</span> Alertas<span class="notif"></span>
+  </div>
+  <div class="nav-item" onclick="showView('renovacoes')">
+    <span class="icon">🔄</span> Renovações
+  </div>
+
+  <div class="nav-section" style="margin-top:12px">Sistema</div>
+  <div class="nav-item" onclick="showView('config')">
+    <span class="icon">⚙️</span> Configurações
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user">
+      <div class="avatar">Z</div>
+      <div>
+        <div style="font-weight:600;font-size:13px;color:var(--text)">Mentoria ZENITH</div>
+        <div style="font-size:11px">Painel de Gestão</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+
+  <!-- ════ VIEW: DASHBOARD ════ -->
+  <div id="view-dashboard" class="view active">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard Geral</div>
+        <div class="page-subtitle">Visão completa da sua consultoria · Maio 2026</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-outline">📤 Exportar</button>
+        <button class="btn btn-primary" onclick="openModal()">+ Novo Cliente</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-label">Clientes Ativos</div>
+        <div class="kpi-value green">18</div>
+        <div class="kpi-badge up">↑ +3 este mês</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-label">Faturamento Mensal</div>
+        <div class="kpi-value yellow" style="font-size:24px">R$14.800</div>
+        <div class="kpi-badge up">↑ +12% vs mês ant.</div>
+      </div>
+      <div class="kpi-card red clickable" onclick="abrirModalRenovacoes()" id="kpiRenovacoes">
+        <div class="kpi-label">🔄 Renovações Próximas</div>
+        <div class="kpi-value red" id="kpiRenovacoesVal">0</div>
+        <div class="kpi-sub">vencendo em até 30 dias</div>
+      </div>
+      <div class="kpi-card orange clickable" onclick="abrirModalEncerrados()" id="kpiEncerrados">
+        <div class="kpi-label">📁 Ciclos Encerrados</div>
+        <div class="kpi-value orange" id="kpiEncerradosVal">0</div>
+        <div class="kpi-sub">total histórico · clique para ver</div>
+      </div>
+      <div class="kpi-card purple clickable" onclick="abrirModalProtocolo()" id="kpiProtocolo">
+        <div class="kpi-label">🔁 Atualizar Protocolo</div>
+        <div class="kpi-value purple" id="kpiProtocoloVal">0</div>
+        <div class="kpi-sub">alunos esta semana</div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="charts-row">
+      <div class="chart-card wide">
+        <div class="chart-title">Crescimento de Clientes <span>últimos 6 meses</span></div>
+        <div class="chart-wrap"><canvas id="chartCrescimento"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por Programa <span>ativos</span></div>
+        <div class="chart-wrap"><canvas id="chartProgramas"></canvas></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="charts-row">
+<div class="chart-card">
+        <div class="chart-title">Contratos por Duração <span>ativos</span></div>
+        <div class="chart-wrap"><canvas id="chartDuracao"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Status dos Treinos <span>clientes ativos</span></div>
+        <div class="chart-wrap"><canvas id="chartTreinos"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ALERTAS RÁPIDOS -->
+    <div class="alerts-row">
+      <div class="alert-card">
+        <div class="chart-title" style="margin:0">⚠️ Sinais de Alerta <span style="color:var(--red)">(6)</span></div>
+        <div class="alert-list" id="alertList"></div>
+      </div>
+      <div class="alert-card">
+        <div class="chart-title" style="margin:0">🌿 Sinais Verdes <span style="color:var(--green)">(8)</span></div>
+        <div class="alert-list" id="greenList"></div>
+      </div>
+    </div>
+  </div><!-- /dashboard -->
+
+
+  <!-- ════ VIEW: CLIENTES ATIVOS ════ -->
+  <div id="view-clientes" class="view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Clientes Ativos</div>
+        <div class="page-subtitle">18 clientes em acompanhamento</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="openModal()">+ Novo Cliente</button>
+      </div>
+    </div>
+    <div class="contratos-grid" id="clientesGrid"></div>
+  </div>
+
+
+
+
+  <!-- ════ VIEW: TABELA GERAL ════ -->
+  <div id="view-tabela" class="view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Todos os Registros</div>
+        <div class="page-subtitle">Filtre por status: Ativos, Congelados, Encerrados ou Cancelados</div>
+      </div>
+      <div class="header-actions">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" placeholder="Buscar por nome..." oninput="filterTable(this.value)">
+        </div>
+      </div>
+    </div>
+    <div class="table-section">
+      <div class="table-header">
+        <div class="table-title">Registros</div>
+        <div class="table-filters" id="tableFilters"></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Status</th>
+            <th>Programa</th>
+            <th>Protocolo</th>
+            <th>Contrato</th>
+            <th>Treino</th>
+            <th>Fotos</th>
+            <th>Sinal</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody id="mainTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ════ VIEW: ALERTAS ════ -->
+  <div id="view-alertas" class="view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Central de Alertas</div>
+        <div class="page-subtitle">Clientes que precisam de atenção agora</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi-card red">
+        <div class="kpi-label">Não respondem</div>
+        <div class="kpi-value red">3</div>
+      </div>
+      <div class="kpi-card yellow">
+        <div class="kpi-label">Inconsistentes</div>
+        <div class="kpi-value yellow">2</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Treino desatualizado</div>
+        <div class="kpi-value orange">4</div>
+      </div>
+    </div>
+
+    <div class="table-section">
+      <div class="table-header">
+        <div class="table-title">⚠️ Ação Necessária</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Alerta</th>
+            <th>Programa</th>
+            <th>Protocolo</th>
+            <th>Treino</th>
+            <th>Fotos</th>
+            <th>Dias no Contrato</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="alertasTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ════ VIEW: RENOVAÇÕES ════ -->
+  <div id="view-renovacoes" class="view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Renovações</div>
+        <div class="page-subtitle">Contratos próximos do vencimento</div>
+      </div>
+    </div>
+
+    <div class="contratos-grid" id="renovacoesGrid"></div>
+  </div>
+
+
+  <!-- ════ VIEW: CONFIGURAÇÕES ════ -->
+  <div id="view-config" class="view">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Configurações</div>
+        <div class="page-subtitle">Personalize protocolos, planos e períodos de contrato</div>
+      </div>
+    </div>
+
+    <!-- Duração do protocolo -->
+    <div class="config-section">
+      <div class="config-section-title">📋 Duração de cada Protocolo</div>
+      <div class="config-section-desc">Quantas semanas dura cada protocolo antes de ser trocado? Isso controla a barra de progresso e os alertas de atualização no Dashboard.</div>
+      <div class="semanas-toggle" id="semanasToggle">
+        <button class="semanas-btn active" onclick="setSemanas(4,this)">4 semanas</button>
+        <button class="semanas-btn" onclick="setSemanas(8,this)">8 semanas</button>
+        <button class="semanas-btn" onclick="setSemanas(12,this)">12 semanas</button>
+      </div>
+      <div class="config-info" id="configInfo"></div>
+    </div>
+
+    <!-- Planos -->
+    <div class="config-section">
+      <div class="config-section-title">💼 Planos / Programas</div>
+      <div class="config-section-desc">Esses planos aparecem no cadastro de novos clientes.</div>
+      <div class="config-list" id="programasList"></div>
+      <div class="config-add-row">
+        <input id="novoPrograma" class="form-input" type="text" placeholder="Nome do novo plano (ex: VIP Presencial)">
+        <button class="btn btn-primary" onclick="adicionarPrograma()">+ Adicionar</button>
+      </div>
+    </div>
+
+    <!-- Períodos de contrato -->
+    <div class="config-section">
+      <div class="config-section-title">📅 Períodos de Contrato</div>
+      <div class="config-section-desc">Esses períodos aparecem no cadastro de novos clientes.</div>
+      <div class="config-list" id="periodosList"></div>
+      <div class="config-add-row">
+        <input id="novoPeriodo" class="form-input" type="text" placeholder="Nome do período (ex: Bimestral)">
+        <button class="btn btn-primary" onclick="adicionarPeriodo()">+ Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+</main><!-- /main -->
+
+<!-- ══ MODAL: CICLOS ENCERRADOS ══ -->
+<div class="modal-overlay" id="modalEncerradosOverlay" onclick="if(event.target.id==='modalEncerradosOverlay')document.getElementById('modalEncerradosOverlay').classList.remove('open')">
+  <div class="modal" style="width:660px">
+    <div class="modal-title">
+      <span>📁 Clientes com Ciclo Encerrado</span>
+      <span class="modal-close" onclick="document.getElementById('modalEncerradosOverlay').classList.remove('open')">✕</span>
+    </div>
+    <p style="color:var(--text2);font-size:12.5px;margin-bottom:16px">Esses clientes já fizeram parte da sua consultoria. Clique em <strong style="color:var(--accent)">Reativar</strong> para enviar uma mensagem de reconquista.</p>
+    <div id="modalEncerradosBody"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: MENSAGEM DE REATIVAÇÃO ══ -->
+<div class="modal-overlay" id="modalReativacaoOverlay" onclick="if(event.target.id==='modalReativacaoOverlay')document.getElementById('modalReativacaoOverlay').classList.remove('open')">
+  <div class="modal" style="width:580px">
+    <div class="modal-title">
+      <span>💬 Mensagem de Reativação</span>
+      <span class="modal-close" onclick="document.getElementById('modalReativacaoOverlay').classList.remove('open')">✕</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--text2);margin-bottom:16px">Personalize a mensagem abaixo e copie para enviar via WhatsApp.</p>
+    <div class="form-group full" style="margin-bottom:16px">
+      <label class="form-label">Para</label>
+      <input id="reat-nome" class="form-input" type="text" readonly style="color:var(--accent);font-weight:600">
+    </div>
+    <div class="form-group full" style="margin-bottom:20px">
+      <label class="form-label">Mensagem</label>
+      <textarea id="reat-msg" class="form-textarea" style="min-height:200px;line-height:1.7"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="document.getElementById('modalReativacaoOverlay').classList.remove('open')">Fechar</button>
+      <button class="btn btn-primary" onclick="copiarMensagem()">📋 Copiar Mensagem</button>
+      <button class="btn btn-primary" style="background:#25d366" onclick="abrirWhatsapp()">📱 Abrir WhatsApp</button>
+    </div>
+    <div id="copiadoFeedback" style="display:none;text-align:center;margin-top:12px;font-size:12px;color:var(--green);font-weight:600">✅ Mensagem copiada!</div>
+  </div>
+</div>
+
+<!-- ══ MODAL: RENOVAÇÕES ══ -->
+<div class="modal-overlay" id="modalRenovacoesOverlay" onclick="if(event.target.id==='modalRenovacoesOverlay')document.getElementById('modalRenovacoesOverlay').classList.remove('open')">
+  <div class="modal" style="width:660px">
+    <div class="modal-title">
+      <span>🔄 Contratos vencendo nos próximos 30 dias</span>
+      <span class="modal-close" onclick="document.getElementById('modalRenovacoesOverlay').classList.remove('open')">✕</span>
+    </div>
+    <div id="modalRenovacoesBody"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ATUALIZAÇÕES DE PROTOCOLO ══ -->
+<div class="modal-overlay" id="modalProtocoloOverlay" onclick="if(event.target.id==='modalProtocoloOverlay')document.getElementById('modalProtocoloOverlay').classList.remove('open')">
+  <div class="modal" style="width:640px">
+    <div class="modal-title">
+      <span>🔁 Atualizações de Protocolo desta Semana</span>
+      <span class="modal-close" onclick="document.getElementById('modalProtocoloOverlay').classList.remove('open')">✕</span>
+    </div>
+    <div id="modalProtocoloBody"></div>
+  </div>
+</div>
+
+
+<!-- ══ MODAL: NOVO CLIENTE/LEAD ══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modalTitleText">+ Novo Cadastro</span>
+      <span class="modal-close" onclick="closeModal()">✕</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Nome</label>
+        <input id="f-nome" class="form-input" type="text" placeholder="Nome completo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Whatsapp</label>
+        <input id="f-whatsapp" class="form-input" type="text" placeholder="(11) 99999-9999">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Instagram</label>
+        <input id="f-instagram" class="form-input" type="text" placeholder="@usuario">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data de Nascimento</label>
+        <input id="f-nascimento" class="form-input" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select id="f-status" class="form-select">
+          <option>Ativo</option>
+          <option>Congelado</option>
+          <option>Encerrado</option>
+          <option>Cancelado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Programa Contratado</label>
+        <select id="f-programa" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tempo Contratado</label>
+        <select id="f-contrato" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Valor do Programa (R$)</label>
+        <input id="f-valor" class="form-input" type="number" placeholder="0,00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Início do Contrato</label>
+        <input id="f-inicio" class="form-input" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Final do Contrato</label>
+        <input id="f-fim" class="form-input" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Protocolo Atual</label>
+        <select id="f-protocolo" class="form-select">
+          <option>Protocolo 01</option>
+          <option>Protocolo 02</option>
+          <option>Protocolo 03</option>
+          <option>Protocolo 04</option>
+          <option>Protocolo 05</option>
+          <option>Protocolo 06</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Treino</label>
+        <select id="f-treino" class="form-select">
+          <option>Em andamento</option>
+          <option>Em dia</option>
+          <option>Desatualizado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fotos</label>
+        <select id="f-fotos" class="form-select">
+          <option>Em dia</option>
+          <option>Pendentes</option>
+          <option>Antigas</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sinais Verdes</label>
+        <select id="f-sinalVerde" class="form-select">
+          <option value="">—</option>
+          <option>Motivado</option>
+          <option>Resultado Alto</option>
+          <option>Comunicativo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sinais de Alerta</label>
+        <select id="f-sinalAlerta" class="form-select">
+          <option value="">—</option>
+          <option>Depressão</option>
+          <option>Não iniciou</option>
+          <option>Impaciente</option>
+          <option>Inconsistente</option>
+          <option>Não responde</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Observações</label>
+        <textarea id="f-obs" class="form-textarea" placeholder="Notas, observações clínicas, objetivos..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCliente()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG GLOBAL
+// ═══════════════════════════════════════════════
+const config = {
+  semanasProtocolo: 4,
+  programas: ['Consultoria Light','Consultoria Premium','Corrida','Presencial 2x','Presencial 2x + nutrição'],
+  periodos: ['Trimestral','Quadrimestral','Semestral','Anual'],
+};
+
+// ═══════════════════════════════════════════════
+//  DADOS DE EXEMPLO
+// ═══════════════════════════════════════════════
+const CORES = [
+  ['#6c63ff','#1a1730'],['#00d4aa','#00261f'],['#ff6b6b','#2e0000'],
+  ['#ffd93d','#2e2600'],['#4d9fff','#001e38'],['#fb923c','#2e1200'],
+  ['#a78bfa','#1e1038'],['#f472b6','#2e0018'],['#34d399','#002e1a'],
+  ['#60a5fa','#001e38'],['#facc15','#2e2600'],['#f87171','#2e0000'],
+  ['#818cf8','#1a1730'],['#2dd4bf','#002e2a'],['#c084fc','#1e0038'],
+  ['#fb7185','#2e0010'],['#a3e635','#1a2600'],['#38bdf8','#001e2e'],
+];
+function cor(i){ return CORES[i % CORES.length]; }
+function initials(n){ return n.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase(); }
+
+const clientes = [
+  {nome:'Ana Beatriz Lima', statusCliente:'Ativo', programa:'Consultoria Premium', protocolo:'Protocolo 04', contrato:'Semestral', inicio:'2025-11-01', fim:'2026-05-01', valor:1800, treino:'Em dia', fotos:'Em dia', sinalVerde:'Motivado', sinalAlerta:'', obs:'Foco em emagrecimento e hipertrofia'},
+  {nome:'Carla Mendes', statusCliente:'Ativo', programa:'Consultoria Light', protocolo:'Protocolo 03', contrato:'Trimestral', inicio:'2026-02-01', fim:'2026-05-01', valor:900, treino:'Desatualizado', fotos:'Pendentes', sinalVerde:'', sinalAlerta:'Inconsistente', obs:''},
+  {nome:'Juliana Torres', statusCliente:'Ativo', programa:'Consultoria Premium', protocolo:'Protocolo 06', contrato:'Anual', inicio:'2025-06-01', fim:'2026-06-01', valor:2400, treino:'Em dia', fotos:'Em dia', sinalVerde:'Resultado Alto', sinalAlerta:'', obs:'Maratonista amadora'},
+  {nome:'Fernanda Costa', statusCliente:'Ativo', programa:'Presencial 2x', protocolo:'Protocolo 02', contrato:'Trimestral', inicio:'2026-03-01', fim:'2026-06-01', valor:1200, treino:'Em andamento', fotos:'Em dia', sinalVerde:'Comunicativo', sinalAlerta:'', obs:''},
+  {nome:'Mariana Souza', statusCliente:'Ativo', programa:'Consultoria Light', protocolo:'Protocolo 01', contrato:'Trimestral', inicio:'2026-03-15', fim:'2026-06-15', valor:900, treino:'Em andamento', fotos:'Antigas', sinalVerde:'', sinalAlerta:'Não responde', obs:''},
+  {nome:'Patrícia Alves', statusCliente:'Ativo', programa:'Consultoria Premium', protocolo:'Protocolo 05', contrato:'Semestral', inicio:'2025-12-01', fim:'2026-06-01', valor:1800, treino:'Em dia', fotos:'Em dia', sinalVerde:'Motivado', sinalAlerta:'', obs:'Foco em corrida'},
+  {nome:'Renata Oliveira', statusCliente:'Ativo', programa:'Corrida', protocolo:'Protocolo 03', contrato:'Trimestral', inicio:'2026-02-20', fim:'2026-05-20', valor:800, treino:'Em andamento', fotos:'Pendentes', sinalVerde:'', sinalAlerta:'Impaciente', obs:'Objetivo: 5km em 30min'},
+  {nome:'Sabrina Faria', statusCliente:'Ativo', programa:'Presencial 2x + nutrição', protocolo:'Protocolo 04', contrato:'Quadrimestral', inicio:'2026-01-01', fim:'2026-05-01', valor:2200, treino:'Em dia', fotos:'Em dia', sinalVerde:'Resultado Alto', sinalAlerta:'', obs:'Pós-operatório'},
+  {nome:'Tatiane Braga', statusCliente:'Ativo', programa:'Consultoria Premium', protocolo:'Protocolo 02', contrato:'Anual', inicio:'2025-09-01', fim:'2026-09-01', valor:2400, treino:'Em dia', fotos:'Em dia', sinalVerde:'Comunicativo', sinalAlerta:'', obs:''},
+  {nome:'Viviane Rocha', statusCliente:'Ativo', programa:'Consultoria Light', protocolo:'Protocolo 01', contrato:'Trimestral', inicio:'2026-04-01', fim:'2026-07-01', valor:900, treino:'Em andamento', fotos:'Em dia', sinalVerde:'Motivado', sinalAlerta:'', obs:'Iniciante'},
+  {nome:'Bianca Moura', statusCliente:'Congelado', programa:'Consultoria Premium', protocolo:'Protocolo 05', contrato:'Semestral', inicio:'2025-11-15', fim:'2026-05-15', valor:1800, treino:'Desatualizado', fotos:'Antigas', sinalVerde:'', sinalAlerta:'Não responde', obs:''},
+  {nome:'Camila Nunes', statusCliente:'Ativo', programa:'Presencial 2x', protocolo:'Protocolo 03', contrato:'Trimestral', inicio:'2026-03-01', fim:'2026-06-01', valor:1200, treino:'Em dia', fotos:'Em dia', sinalVerde:'Resultado Alto', sinalAlerta:'', obs:''},
+  {nome:'Daniela Pires', statusCliente:'Ativo', programa:'Consultoria Premium', protocolo:'Protocolo 06', contrato:'Anual', inicio:'2025-07-01', fim:'2026-07-01', valor:2400, treino:'Em dia', fotos:'Em dia', sinalVerde:'Comunicativo', sinalAlerta:'', obs:''},
+  {nome:'Erika Santos', statusCliente:'Ativo', programa:'Corrida', protocolo:'Protocolo 02', contrato:'Trimestral', inicio:'2026-02-01', fim:'2026-05-01', valor:800, treino:'Em andamento', fotos:'Em dia', sinalVerde:'', sinalAlerta:'Inconsistente', obs:''},
+  {nome:'Flavia Ribeiro', statusCliente:'Ativo', programa:'Presencial 2x + nutrição', protocolo:'Protocolo 04', contrato:'Semestral', inicio:'2025-12-01', fim:'2026-06-01', valor:2200, treino:'Em dia', fotos:'Em dia', sinalVerde:'Motivado', sinalAlerta:'', obs:''},
+  {nome:'Giselle Cardoso', statusCliente:'Cancelado', programa:'Consultoria Light', protocolo:'Protocolo 02', contrato:'Trimestral', inicio:'2026-04-01', fim:'2026-07-01', valor:900, treino:'Em andamento', fotos:'Pendentes', sinalVerde:'', sinalAlerta:'Não iniciou', obs:''},
+  {nome:'Helena Vaz', statusCliente:'Ativo', programa:'Consultoria Premium', protocolo:'Protocolo 03', contrato:'Quadrimestral', inicio:'2026-01-15', fim:'2026-05-15', valor:1800, treino:'Em dia', fotos:'Em dia', sinalVerde:'Resultado Alto', sinalAlerta:'', obs:''},
+  {nome:'Isabela Cruz', statusCliente:'Ativo', programa:'Consultoria Light', protocolo:'Protocolo 01', contrato:'Trimestral', inicio:'2026-05-01', fim:'2026-08-01', valor:900, treino:'Em andamento', fotos:'Em dia', sinalVerde:'Motivado', sinalAlerta:'', obs:'Recém iniciada'},
+];
+
+const leads = [
+  {nome:'Larissa Monteiro', status:'1. Cadastrado', call:'', programa:'', obs:'Veio pelo Instagram'},
+  {nome:'Priscila Duarte', status:'2. Sondagem', call:'', programa:'Consultoria Light', obs:'Interesse em emagrecimento'},
+  {nome:'Natália Freitas', status:'2. Sondagem', call:'', programa:'Consultoria Premium', obs:''},
+  {nome:'Roberta Lima', status:'3. Convidado p/ call', call:'2026-06-03', programa:'Consultoria Premium', obs:''},
+  {nome:'Simone Castro', status:'3. Convidado p/ call', call:'2026-06-04', programa:'Presencial 2x', obs:''},
+  {nome:'Aline Pereira', status:'4. Call agendada', call:'2026-06-02', programa:'Consultoria Premium', obs:'Muito animada'},
+  {nome:'Bruna Teixeira', status:'4. Call agendada', call:'2026-06-05', programa:'Consultoria Light', obs:''},
+  {nome:'Débora Cunha', status:'4. Call agendada', call:'2026-06-06', programa:'Corrida', obs:'Quer fazer 10km'},
+  {nome:'Mônica Dias', status:'5. Follow up', call:'', programa:'Consultoria Premium', obs:'Aguardando resposta'},
+  {nome:'Raquel Borges', status:'5. Follow up', call:'', programa:'Consultoria Light', obs:''},
+  {nome:'Vanessa Lopes', status:'8. Follow up - call não convertida', call:'', programa:'Consultoria Premium', obs:'Disse que vai pensar'},
+  {nome:'Cristina Barros', status:'7. Perdido', call:'', programa:'', obs:'Preço alto'},
+];
+
+const encerrados = [
+  {nome:'Amanda Ferreira', programa:'Consultoria Light', contrato:'Trimestral', valor:900, obs:'Encerrou em março 2026'},
+  {nome:'Beatriz Silva', programa:'Consultoria Premium', contrato:'Semestral', valor:1800, obs:'Mudou de cidade'},
+];
+
+// ═══════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ═══════════════════════════════════════════════
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  const items = document.querySelectorAll('.nav-item');
+  items.forEach(i => { if(i.getAttribute('onclick')?.includes("'"+id+"'")) i.classList.add('active'); });
+}
+
+// ═══════════════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════════════
+let modalClienteIdx = null;
+
+function openModal(idx){
+  modalClienteIdx = (idx !== undefined) ? idx : null;
+  const overlay = document.getElementById('modalOverlay');
+  overlay.classList.add('open');
+
+  if(idx !== undefined){
+    const c = clientes[idx];
+    document.getElementById('modalTitleText').textContent = '✏️ Editar — ' + c.nome;
+    document.getElementById('f-nome').value       = c.nome || '';
+    document.getElementById('f-whatsapp').value   = c.whatsapp || '';
+    document.getElementById('f-instagram').value  = c.instagram || '';
+    document.getElementById('f-nascimento').value = c.nascimento || '';
+    document.getElementById('f-status').value     = c.statusCliente || 'Ativo';
+    document.getElementById('f-programa').value   = c.programa || '';
+    document.getElementById('f-contrato').value   = c.contrato || '';
+    document.getElementById('f-valor').value      = c.valor || '';
+    document.getElementById('f-inicio').value     = c.inicio || '';
+    document.getElementById('f-fim').value        = c.fim || '';
+    document.getElementById('f-protocolo').value  = c.protocolo || '';
+    document.getElementById('f-treino').value     = c.treino || '';
+    document.getElementById('f-fotos').value      = c.fotos || '';
+    document.getElementById('f-sinalVerde').value = c.sinalVerde || '';
+    document.getElementById('f-sinalAlerta').value= c.sinalAlerta || '';
+    document.getElementById('f-obs').value        = c.obs || '';
+  } else {
+    document.getElementById('modalTitleText').textContent = '+ Novo Cadastro';
+    document.querySelectorAll('.form-input, .form-select, .form-textarea').forEach(el => el.value = '');
+  }
+}
+
+function salvarCliente(){
+  const dados = {
+    nome:          document.getElementById('f-nome').value,
+    whatsapp:      document.getElementById('f-whatsapp').value,
+    instagram:     document.getElementById('f-instagram').value,
+    nascimento:    document.getElementById('f-nascimento').value,
+    statusCliente: document.getElementById('f-status').value,
+    programa:      document.getElementById('f-programa').value,
+    contrato:    document.getElementById('f-contrato').value,
+    valor:       parseFloat(document.getElementById('f-valor').value) || 0,
+    inicio:      document.getElementById('f-inicio').value,
+    fim:         document.getElementById('f-fim').value,
+    protocolo:   document.getElementById('f-protocolo').value,
+    treino:      document.getElementById('f-treino').value,
+    fotos:       document.getElementById('f-fotos').value,
+    sinalVerde:  document.getElementById('f-sinalVerde').value,
+    sinalAlerta: document.getElementById('f-sinalAlerta').value,
+    obs:         document.getElementById('f-obs').value,
+  };
+
+  if(modalClienteIdx !== null){
+    clientes[modalClienteIdx] = {...clientes[modalClienteIdx], ...dados};
+  } else {
+    clientes.push(dados);
+  }
+
+  closeModal();
+  renderClientes();
+  renderAlertas();
+  renderAlertasDash();
+  renderRenovacoes();
+}
+
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalOutside(e){ if(e.target.id === 'modalOverlay') closeModal(); }
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function diasRestantes(fim){
+  const d = new Date(fim) - new Date();
+  return Math.ceil(d/(1000*60*60*24));
+}
+function diasContrato(inicio){
+  const d = new Date() - new Date(inicio);
+  return Math.ceil(d/(1000*60*60*24));
+}
+// Extrai o número do protocolo (ex: "Protocolo 03" → 3)
+function numProtocolo(p){
+  const m = p && p.match(/\d+/);
+  return m ? parseInt(m[0]) : 1;
+}
+
+// Dias totais de um período de contrato
+const DIAS_PERIODO = {
+  'Trimestral': 84, 'Quadrimestral': 112, 'Semestral': 168, 'Anual': 336,
+};
+
+// Total de protocolos esperados no contrato
+function totalProtocolos(contrato){
+  const dias = DIAS_PERIODO[contrato] || 90;
+  return Math.ceil(dias / (config.semanasProtocolo * 7));
+}
+
+// Protocolo atual baseado nos dias corridos (começa em 1)
+function protocoloAtualNum(c){
+  if(!c.inicio) return 1;
+  const dc = diasContrato(c.inicio);
+  const num = Math.floor(dc / (config.semanasProtocolo * 7)) + 1;
+  const total = totalProtocolos(c.contrato);
+  return Math.min(num, total);
+}
+
+// Progresso dentro do protocolo atual em %
+// Usa módulo para sempre contar do início do ciclo corrente (0 → 100% → reinicia)
+function progProtocolo(c){
+  if(!c.inicio) return 0;
+  const diasTotal = config.semanasProtocolo * 7;
+  const dc = diasContrato(c.inicio);
+  if(dc <= 0) return 0;
+  const diasNoCiclo = dc % diasTotal;
+  // Se o resto for 0 e já passou pelo menos um ciclo completo → 100%
+  if(diasNoCiclo === 0 && dc >= diasTotal) return 100;
+  return Math.min(100, Math.round((diasNoCiclo / diasTotal) * 100));
+}
+
+// Semanas decorridas desde o início do contrato
+function semanasDecorridas(inicio){
+  return Math.floor(diasContrato(inicio) / 7);
+}
+
+// Protocolo esperado com base nas semanas decorridas
+function protocoloEsperado(inicio){
+  const semanas = semanasDecorridas(inicio);
+  const num = Math.floor(semanas / config.semanasProtocolo) + 1;
+  return Math.min(num, 6); // máx protocolo 06
+}
+
+// Retorna clientes cuja última semana do protocolo atual cai nesta semana
+function clientesParaAtualizar(){
+  return clientes.filter(c => {
+    if(!c.inicio) return false;
+    const semanas = semanasDecorridas(c.inicio);
+    const diasTotal = config.semanasProtocolo * 7;
+    const diasNoAtual = diasContrato(c.inicio) % diasTotal;
+    // Última semana = últimos 7 dias do ciclo do protocolo
+    return diasNoAtual >= (diasTotal - 7) && diasNoAtual < diasTotal;
+  });
+}
+function corStatus(s){
+  const m = {
+    '1. Cadastrado':'#8b7355','2. Sondagem':'#ffd93d','3. Convidado p/ call':'#4d9fff',
+    '4. Call agendada':'#fb923c','5. Follow up':'#a78bfa','6. Cliente':'#00d4aa',
+    '7. Perdido':'#8b92b0','8. Follow up - call não convertida':'#ff6b6b','9. Ciclo Encerrado':'#6b7280'
+  };
+  return m[s]||'#8b92b0';
+}
+function corTreino(t){
+  if(t==='Em dia') return {bg:'rgba(0,212,170,.12)',c:'#00d4aa'};
+  if(t==='Em andamento') return {bg:'rgba(251,146,60,.12)',c:'#fb923c'};
+  return {bg:'rgba(255,107,107,.12)',c:'#ff6b6b'};
+}
+function corFoto(f){
+  if(f==='Em dia') return {bg:'rgba(0,212,170,.12)',c:'#00d4aa'};
+  if(f==='Pendentes') return {bg:'rgba(255,211,61,.12)',c:'#ffd93d'};
+  return {bg:'rgba(139,146,176,.12)',c:'#8b92b0'};
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER: CLIENTES
+// ═══════════════════════════════════════════════
+function renderClientes(){
+  const grid = document.getElementById('clientesGrid');
+  grid.innerHTML = clientes.map((c,i)=>{
+    const [fg,bg] = cor(i);
+    const dias = diasRestantes(c.fim);
+    const prog = progProtocolo(c);
+    const urgente = dias >= 0 && dias <= 30;
+    const vencido = dias < 0;
+    const ct = corTreino(c.treino || '');
+    const cf = corFoto(c.fotos || '');
+
+    const diasLabel = vencido ? 'Vencido' : dias === 0 ? 'Hoje' : dias + 'd';
+    const diasColor = vencido ? '#ff6b6b' : urgente ? '#ffd93d' : '#00d4aa';
+    const diasBg    = vencido ? 'rgba(255,107,107,.18)' : urgente ? 'rgba(255,211,61,.18)' : 'rgba(0,212,170,.15)';
+
+    const stCor = STATUS_COR[c.statusCliente||'Ativo'];
+
+    return `<div class="contrato-card" onclick="openModal(${i})" title="Clique para editar">
+
+      <!-- HEADER -->
+      <div class="card-header">
+        <div class="card-header-bg" style="background:${fg}"></div>
+        <div class="contrato-avatar" style="background:${bg};color:${fg}">${initials(c.nome)}</div>
+        <div class="card-header-info">
+          <div class="contrato-name">${c.nome}</div>
+          <div class="contrato-prog">${c.programa}</div>
+          <div style="margin-top:5px">
+            <span class="tag" style="background:${stCor.bg};color:${stCor.c};padding:2px 8px;font-size:10px">${c.statusCliente||'Ativo'}</span>
+          </div>
+        </div>
+        <div class="card-dias-badge" style="background:${diasBg};color:${diasColor}">
+          <div style="font-size:9px;font-weight:600;opacity:.8">VENCE</div>
+          <div>${diasLabel}</div>
+        </div>
+      </div>
+
+      <!-- PROGRESSO DO PROTOCOLO -->
+      <div class="card-progress">
+        <div class="progress-label">
+          <span style="font-weight:700">
+            ${(()=>{ const atual = protocoloAtualNum(c); const total = totalProtocolos(c.contrato); return `Protocolo ${String(atual).padStart(2,'0')}/<span style="color:var(--text2)">${String(total).padStart(2,'0')}</span>`; })()}
+          </span>
+          <span style="color:${fg};font-weight:700">${prog}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${prog}%;background:linear-gradient(90deg,${fg}99,${fg})"></div>
+        </div>
+      </div>
+
+      <!-- MÉTRICAS -->
+      <div class="card-metrics">
+        <div class="card-metric">
+          <div class="card-metric-label">Contrato</div>
+          <div class="card-metric-val" style="font-size:12px">${c.contrato||'—'}</div>
+        </div>
+        <div class="card-metric">
+          <div class="card-metric-label">Valor</div>
+          <div class="card-metric-val" style="color:${fg};font-size:13px">R$${c.valor?c.valor.toLocaleString('pt-BR'):'—'}</div>
+        </div>
+        <div class="card-metric">
+          <div class="card-metric-label">No contrato</div>
+          <div class="card-metric-val">${c.inicio ? diasContrato(c.inicio)+'d' : '—'}</div>
+        </div>
+      </div>
+
+      <!-- TAGS -->
+      <div class="card-footer">
+        ${c.treino ? `<span class="tag" style="background:${ct.bg};color:${ct.c}">🏋️ ${c.treino}</span>` : ''}
+        ${c.fotos  ? `<span class="tag" style="background:${cf.bg};color:${cf.c}">📸 ${c.fotos}</span>`  : ''}
+        ${c.sinalVerde  ? `<span class="tag" style="background:rgba(0,212,170,.12);color:#00d4aa">✅ ${c.sinalVerde}</span>`  : ''}
+        ${c.sinalAlerta ? `<span class="tag" style="background:rgba(255,107,107,.12);color:#ff6b6b">⚠️ ${c.sinalAlerta}</span>` : ''}
+        ${c.obs ? `<span class="tag" style="background:rgba(139,146,176,.1);color:var(--text2)" title="${c.obs}">💬 Obs</span>` : ''}
+        <span class="tag" style="background:${fg}18;color:${fg};margin-left:auto">📋 ${String(protocoloAtualNum(c)).padStart(2,'0')}/${String(totalProtocolos(c.contrato)).padStart(2,'0')}</span>
+      </div>
+
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER: TABELA
+// ═══════════════════════════════════════════════
+const STATUS_CLIENTE = ['Ativo','Congelado','Encerrado','Cancelado'];
+const STATUS_COR = {
+  'Ativo':    {bg:'rgba(0,212,170,.15)',   c:'#00d4aa'},
+  'Congelado':{bg:'rgba(77,159,255,.15)',  c:'#4d9fff'},
+  'Encerrado':{bg:'rgba(139,146,176,.15)', c:'#8b92b0'},
+  'Cancelado':{bg:'rgba(255,107,107,.15)', c:'#ff6b6b'},
+};
+
+let activeFilter = 'Todos';
+function renderTabela(){
+  const filters = ['Todos','Ativo','Congelado','Encerrado','Cancelado'];
+  document.getElementById('tableFilters').innerHTML = filters.map(f=>
+    `<button class="filter-btn ${f==='Todos'?'active':''}" onclick="setFilter('${f}',this)">${f==='Todos'?'Todos':f+'s'}</button>`
+  ).join('');
+  renderTabelaBody('Todos');
+}
+
+function setFilter(f, btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = f;
+  renderTabelaBody(f);
+}
+
+function filterTable(val){
+  renderTabelaBody(activeFilter, val);
+}
+
+function alterarStatusCliente(idx, novoStatus){
+  clientes[idx].statusCliente = novoStatus;
+  renderTabelaBody(activeFilter);
+  renderClientes();
+}
+
+function renderTabelaBody(filter, search=''){
+  let rows = clientes.map((c,i)=>({...c, _idx:i}));
+  if(filter !== 'Todos') rows = rows.filter(r=> r.statusCliente === filter);
+  if(search) rows = rows.filter(r=>r.nome.toLowerCase().includes(search.toLowerCase()));
+
+  const sc_map = STATUS_COR;
+
+  document.getElementById('mainTableBody').innerHTML = rows.map((r,i)=>{
+    const [fg,bg] = cor(i);
+    const st = r.statusCliente || 'Ativo';
+    const sc = sc_map[st] || sc_map['Ativo'];
+    const ct = r.treino ? corTreino(r.treino) : {bg:'transparent',c:'#8b92b0'};
+    const cf = r.fotos ? corFoto(r.fotos) : {bg:'transparent',c:'#8b92b0'};
+    const selectOpts = STATUS_CLIENTE.map(s=>
+      `<option value="${s}" ${s===st?'selected':''}>${s}</option>`
+    ).join('');
+    return `<tr>
+      <td><div class="td-name">
+        <div class="td-avatar" style="background:${bg};color:${fg}">${initials(r.nome)}</div>
+        ${r.nome}
+      </div></td>
+      <td>
+        <select class="status-select" style="background:${sc.bg};color:${sc.c};border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;outline:none;"
+          onchange="alterarStatusCliente(${r._idx},this.value)">
+          ${selectOpts}
+        </select>
+      </td>
+      <td style="color:var(--text2);font-size:12px">${r.programa||'—'}</td>
+      <td style="color:var(--text2);font-size:12px">${r.protocolo||'—'}</td>
+      <td style="color:var(--text2);font-size:12px">${r.contrato||'—'}</td>
+      <td>${r.treino?`<span class="foto-badge" style="background:${ct.bg};color:${ct.c}">${r.treino}</span>`:'—'}</td>
+      <td>${r.fotos?`<span class="foto-badge" style="background:${cf.bg};color:${cf.c}">${r.fotos}</span>`:'—'}</td>
+      <td>
+        ${r.sinalVerde?`<span style="font-size:11px;color:var(--green)">✅ ${r.sinalVerde}</span>`:''}
+        ${r.sinalAlerta?`<span style="font-size:11px;color:var(--red)">⚠️ ${r.sinalAlerta}</span>`:''}
+      </td>
+      <td style="font-weight:600">${r.valor?'R$'+r.valor.toLocaleString('pt-BR'):'—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="9"><div class="empty-state"><div class="icon">🔍</div>Nenhum resultado encontrado</div></td></tr>`;
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER: ALERTAS
+// ═══════════════════════════════════════════════
+function renderAlertas(){
+  const comAlerta = clientes.filter(c=>c.sinalAlerta);
+  document.getElementById('alertasTableBody').innerHTML = comAlerta.map((c,i)=>{
+    const [fg,bg] = cor(i);
+    const ct = corTreino(c.treino);
+    const cf = corFoto(c.fotos);
+    const dias = diasContrato(c.inicio);
+    return `<tr>
+      <td><div class="td-name">
+        <div class="td-avatar" style="background:${bg};color:${fg}">${initials(c.nome)}</div>${c.nome}
+      </div></td>
+      <td><span class="tag" style="background:rgba(255,107,107,.12);color:#ff6b6b">⚠️ ${c.sinalAlerta}</span></td>
+      <td style="font-size:12px;color:var(--text2)">${c.programa}</td>
+      <td style="font-size:12px;color:var(--text2)">${c.protocolo}</td>
+      <td><span class="foto-badge" style="background:${ct.bg};color:${ct.c}">${c.treino}</span></td>
+      <td><span class="foto-badge" style="background:${cf.bg};color:${cf.c}">${c.fotos}</span></td>
+      <td style="font-weight:600">${dias}d</td>
+      <td>
+        <button class="btn btn-outline" style="padding:5px 12px;font-size:11px">📱 Mensagem</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER: ALERTAS DASHBOARD
+// ═══════════════════════════════════════════════
+function renderAlertasDash(){
+  const alertas = clientes.filter(c=>c.sinalAlerta).slice(0,4);
+  document.getElementById('alertList').innerHTML = alertas.map((c,i)=>{
+    const [fg,bg] = cor(i);
+    const tagC = c.sinalAlerta==='Não responde'?'rgba(255,107,107,.15)':'rgba(255,211,61,.15)';
+    const tagT = c.sinalAlerta==='Não responde'?'#ff6b6b':'#ffd93d';
+    return `<div class="alert-item">
+      <div class="alert-avatar" style="background:${bg};color:${fg}">${initials(c.nome)}</div>
+      <div class="alert-info">
+        <div class="alert-name">${c.nome}</div>
+        <div class="alert-detail">${c.programa} · ${c.protocolo}</div>
+      </div>
+      <span class="alert-tag" style="background:${tagC};color:${tagT}">⚠️ ${c.sinalAlerta}</span>
+    </div>`;
+  }).join('');
+
+  const verdes = clientes.filter(c=>c.sinalVerde).slice(0,4);
+  document.getElementById('greenList').innerHTML = verdes.map((c,i)=>{
+    const [fg,bg] = cor(i+5);
+    return `<div class="alert-item">
+      <div class="alert-avatar" style="background:${bg};color:${fg}">${initials(c.nome)}</div>
+      <div class="alert-info">
+        <div class="alert-name">${c.nome}</div>
+        <div class="alert-detail">${c.programa} · ${c.protocolo}</div>
+      </div>
+      <span class="alert-tag" style="background:rgba(0,212,170,.12);color:#00d4aa">✅ ${c.sinalVerde}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER: RENOVAÇÕES
+// ═══════════════════════════════════════════════
+function renderRenovacoes(){
+  const prox = clientes.filter(c=> diasRestantes(c.fim) <= 45).sort((a,b)=> diasRestantes(a.fim)-diasRestantes(b.fim));
+  const grid = document.getElementById('renovacoesGrid');
+  grid.innerHTML = prox.map((c,i)=>{
+    const [fg,bg] = cor(i);
+    const dias = diasRestantes(c.fim);
+    const urgente = dias < 15;
+    return `<div class="contrato-card" style="border-color:${urgente?'rgba(255,107,107,.4)':'var(--border)'}">
+      <div class="contrato-top">
+        <div class="contrato-avatar" style="background:${bg};color:${fg}">${initials(c.nome)}</div>
+        <div>
+          <div class="contrato-name">${c.nome}</div>
+          <div class="contrato-prog">${c.programa}</div>
+        </div>
+      </div>
+      <div class="contrato-stats">
+        <div class="contrato-stat">
+          <div class="contrato-stat-label">Vence em</div>
+          <div class="contrato-stat-val" style="color:${urgente?'var(--red)':'var(--yellow)'}">${dias > 0 ? dias+'d' : 'Vencido'}</div>
+        </div>
+        <div class="contrato-stat">
+          <div class="contrato-stat-label">Plano atual</div>
+          <div class="contrato-stat-val" style="font-size:11px">${c.contrato}</div>
+        </div>
+        <div class="contrato-stat">
+          <div class="contrato-stat-label">Valor</div>
+          <div class="contrato-stat-val">R$${c.valor.toLocaleString('pt-BR')}</div>
+        </div>
+        <div class="contrato-stat">
+          <div class="contrato-stat-label">Sinal</div>
+          <div class="contrato-stat-val" style="font-size:11px;color:${c.sinalVerde?'var(--green)':'var(--red)'}">${c.sinalVerde||c.sinalAlerta||'—'}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1;padding:7px 0;font-size:12px">💬 Falar</button>
+        <button class="btn btn-primary" style="flex:1;padding:7px 0;font-size:12px">🔄 Renovar</button>
+      </div>
+    </div>`;
+  }).join('') || `<div class="empty-state"><div class="icon">✅</div>Nenhuma renovação nos próximos 45 dias</div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  CONFIGURAÇÕES
+// ═══════════════════════════════════════════════
+function setSemanas(n, btn){
+  config.semanasProtocolo = n;
+  document.querySelectorAll('.semanas-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('configInfo').textContent =
+    `✅ Cada protocolo dura ${n} semana${n>1?'s':''} (${n*7} dias). A troca é sinalizada nos últimos 7 dias do ciclo.`;
+  renderClientes();
+  renderKpiProtocolo();
+}
+
+function renderListaConfig(tipo){
+  const id = tipo === 'programa' ? 'programasList' : 'periodosList';
+  const arr = tipo === 'programa' ? config.programas : config.periodos;
+  document.getElementById(id).innerHTML = arr.map((item, i) =>
+    `<span class="config-tag">
+      ${item}
+      <span class="config-tag-del" onclick="removerItem('${tipo}',${i})" title="Remover">✕</span>
+    </span>`
+  ).join('');
+}
+
+function renderConfig(){
+  // Atualiza botão ativo
+  document.querySelectorAll('.semanas-btn').forEach(btn => {
+    if(parseInt(btn.textContent) === config.semanasProtocolo) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+  document.getElementById('configInfo').textContent =
+    `✅ Cada protocolo dura ${config.semanasProtocolo} semana${config.semanasProtocolo>1?'s':''} (${config.semanasProtocolo*7} dias). A troca é sinalizada nos últimos 7 dias do ciclo.`;
+  renderListaConfig('programa');
+  renderListaConfig('periodo');
+}
+
+function adicionarPrograma(){
+  const inp = document.getElementById('novoPrograma');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(!config.programas.includes(val)) {
+    config.programas.push(val);
+    atualizarSelectPrograma();
+    renderListaConfig('programa');
+  }
+  inp.value = '';
+}
+
+function adicionarPeriodo(){
+  const inp = document.getElementById('novoPeriodo');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(!config.periodos.includes(val)) {
+    config.periodos.push(val);
+    atualizarSelectPeriodo();
+    renderListaConfig('periodo');
+  }
+  inp.value = '';
+}
+
+function removerItem(tipo, idx){
+  if(tipo === 'programa'){ config.programas.splice(idx,1); atualizarSelectPrograma(); renderListaConfig('programa'); }
+  else { config.periodos.splice(idx,1); atualizarSelectPeriodo(); renderListaConfig('periodo'); }
+}
+
+function atualizarSelectPrograma(){
+  const sel = document.getElementById('f-programa');
+  const cur = sel.value;
+  sel.innerHTML = config.programas.map(p=>`<option>${p}</option>`).join('');
+  if(config.programas.includes(cur)) sel.value = cur;
+}
+
+function atualizarSelectPeriodo(){
+  const sel = document.getElementById('f-contrato');
+  const cur = sel.value;
+  sel.innerHTML = config.periodos.map(p=>`<option>${p}</option>`).join('');
+  if(config.periodos.includes(cur)) sel.value = cur;
+}
+
+// ═══════════════════════════════════════════════
+//  MODAL: CICLOS ENCERRADOS + REATIVAÇÃO
+// ═══════════════════════════════════════════════
+let reativacaoWhatsapp = '';
+
+function renderKpiEncerrados(){
+  const el = document.getElementById('kpiEncerradosVal');
+  if(el) el.textContent = encerrados.length;
+}
+
+function abrirModalEncerrados(){
+  const body = document.getElementById('modalEncerradosBody');
+  if(encerrados.length === 0){
+    body.innerHTML = `<div class="empty-state"><div class="icon">📂</div>Nenhum ciclo encerrado ainda.</div>`;
+  } else {
+    body.innerHTML = `
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Aluno</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Programa</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Duração</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Observação</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Ação</th>
+        </tr></thead>
+        <tbody>
+          ${encerrados.map((c,i)=>{
+            const [fg,bg] = cor(i+3);
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0">${initials(c.nome)}</div>
+                  <div style="font-weight:600;font-size:13px">${c.nome}</div>
+                </div>
+              </td>
+              <td style="padding:12px;font-size:12px;color:var(--text2)">${c.programa||'—'}</td>
+              <td style="padding:12px;font-size:12px;color:var(--text2)">${c.contrato||'—'}</td>
+              <td style="padding:12px;font-size:12px;color:var(--text2)">${c.obs||'—'}</td>
+              <td style="padding:12px">
+                <button class="btn btn-primary" style="padding:5px 14px;font-size:11px;background:var(--accent)" onclick="abrirReativacao(${i})">⚡ Reativar</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+  document.getElementById('modalEncerradosOverlay').classList.add('open');
+}
+
+function abrirReativacao(idx){
+  const c = encerrados[idx];
+  const primeiroNome = c.nome.split(' ')[0];
+  const msg = `Olá, ${primeiroNome}! 👋
+
+Tudo bem? Faz um tempo que encerramos nosso ciclo juntos, e queria passar aqui para saber como você está e como estão evoluindo seus resultados! 💪
+
+Tenho pensado muito no seu progresso e acredito que teríamos muito ainda a conquistar juntos. Estamos com novidades nos programas e adoraria te contar sobre elas.
+
+Que tal marcarmos uma conversa rápida para te apresentar o que preparei? Sem compromisso, só para bater um papo! 😊
+
+Aguardo seu retorno!`;
+
+  document.getElementById('reat-nome').value = c.nome;
+  document.getElementById('reat-msg').value = msg;
+  reativacaoWhatsapp = c.whatsapp || '';
+  document.getElementById('copiadoFeedback').style.display = 'none';
+  document.getElementById('modalReativacaoOverlay').classList.add('open');
+}
+
+function copiarMensagem(){
+  const msg = document.getElementById('reat-msg').value;
+  navigator.clipboard.writeText(msg).then(()=>{
+    const fb = document.getElementById('copiadoFeedback');
+    fb.style.display = 'block';
+    setTimeout(()=> fb.style.display = 'none', 2500);
+  });
+}
+
+function abrirWhatsapp(){
+  const msg = encodeURIComponent(document.getElementById('reat-msg').value);
+  const tel = reativacaoWhatsapp.replace(/\D/g,'');
+  const url = tel ? `https://wa.me/55${tel}?text=${msg}` : `https://wa.me/?text=${msg}`;
+  window.open(url, '_blank');
+}
+
+// ═══════════════════════════════════════════════
+//  KPI E MODAL DE RENOVAÇÕES
+// ═══════════════════════════════════════════════
+function clientesParaRenovar(){
+  return clientes.filter(c => {
+    const dias = diasRestantes(c.fim);
+    return dias >= 0 && dias <= 30;
+  }).sort((a,b) => diasRestantes(a.fim) - diasRestantes(b.fim));
+}
+
+function renderKpiRenovacoes(){
+  const lista = clientesParaRenovar();
+  const el = document.getElementById('kpiRenovacoesVal');
+  if(el) el.textContent = lista.length;
+  const card = document.getElementById('kpiRenovacoes');
+  if(card) card.style.borderColor = lista.length > 0 ? 'rgba(255,107,107,.5)' : 'var(--border)';
+}
+
+function abrirModalRenovacoes(){
+  const lista = clientesParaRenovar();
+  const body = document.getElementById('modalRenovacoesBody');
+  if(lista.length === 0){
+    body.innerHTML = `<div class="empty-state"><div class="icon">✅</div>Nenhum contrato vencendo nos próximos 30 dias.</div>`;
+  } else {
+    body.innerHTML = `
+      <p style="color:var(--text2);font-size:12.5px;margin-bottom:16px">
+        ${lista.length} contrato${lista.length>1?'s vencendo':'vencendo'} em até 30 dias. Entre em contato para renovar!
+      </p>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Aluno</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Programa</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Duração</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Vence em</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Valor</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Ação</th>
+        </tr></thead>
+        <tbody>
+          ${lista.map((c,i)=>{
+            const [fg,bg] = cor(i);
+            const dias = diasRestantes(c.fim);
+            const urgente = dias <= 7;
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0">${initials(c.nome)}</div>
+                  <div>
+                    <div style="font-weight:600;font-size:13px">${c.nome}</div>
+                    <div style="font-size:11px;color:var(--text2)">${c.sinalVerde ? '✅ '+c.sinalVerde : c.sinalAlerta ? '⚠️ '+c.sinalAlerta : '—'}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:12px;font-size:12px;color:var(--text2)">${c.programa}</td>
+              <td style="padding:12px;font-size:12px;color:var(--text2)">${c.contrato}</td>
+              <td style="padding:12px">
+                <span style="background:${urgente?'rgba(255,107,107,.15)':'rgba(255,211,61,.12)'};color:${urgente?'#ff6b6b':'#ffd93d'};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">
+                  ${dias === 0 ? 'Hoje!' : dias+'d'}
+                </span>
+              </td>
+              <td style="padding:12px;font-size:13px;font-weight:600">R$${c.valor.toLocaleString('pt-BR')}</td>
+              <td style="padding:12px">
+                <button class="btn btn-primary" style="padding:5px 12px;font-size:11px">🔄 Renovar</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+  document.getElementById('modalRenovacoesOverlay').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════
+//  KPI E MODAL DE PROTOCOLO
+// ═══════════════════════════════════════════════
+function renderKpiProtocolo(){
+  const lista = clientesParaAtualizar();
+  const kpi = document.getElementById('kpiProtocoloVal');
+  if(kpi) kpi.textContent = lista.length;
+  const card = document.getElementById('kpiProtocolo');
+  if(card){
+    card.style.borderColor = lista.length > 0 ? 'rgba(167,139,250,.5)' : 'var(--border)';
+  }
+}
+
+function abrirModalProtocolo(){
+  const lista = clientesParaAtualizar();
+  const body = document.getElementById('modalProtocoloBody');
+  if(lista.length === 0){
+    body.innerHTML = `<div class="empty-state"><div class="icon">✅</div>Nenhum aluno precisa trocar de protocolo esta semana.</div>`;
+  } else {
+    body.innerHTML = `
+      <p style="color:var(--text2);font-size:12.5px;margin-bottom:16px">
+        ${lista.length} aluno${lista.length>1?'s precisam':'precisa'} trocar de protocolo esta semana (${config.semanasProtocolo} semanas por protocolo).
+      </p>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Aluno</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Protocolo Atual</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Próximo</th>
+          <th style="padding:10px 12px;font-size:11px;color:var(--text2);text-align:left;text-transform:uppercase">Semanas</th>
+        </tr></thead>
+        <tbody>
+          ${lista.map((c,i)=>{
+            const [fg,bg] = cor(i);
+            const proxNum = Math.min(numProtocolo(c.protocolo)+1, 6);
+            const proximo = `Protocolo ${String(proxNum).padStart(2,'0')}`;
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0">${initials(c.nome)}</div>
+                  <div>
+                    <div style="font-weight:600;font-size:13px">${c.nome}</div>
+                    <div style="font-size:11px;color:var(--text2)">${c.programa}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:12px;font-size:13px;color:var(--text2)">${c.protocolo}</td>
+              <td style="padding:12px"><span style="background:rgba(167,139,250,.15);color:#a78bfa;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${proximo}</span></td>
+              <td style="padding:12px;font-size:13px;color:var(--text2)">${semanasDecorridas(c.inicio)}sem</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+  document.getElementById('modalProtocoloOverlay').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════
+Chart.defaults.color = '#8b92b0';
+Chart.defaults.borderColor = '#2e3350';
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+function initCharts(){
+  // Crescimento
+  new Chart(document.getElementById('chartCrescimento'), {
+    type: 'line',
+    data: {
+      labels: ['Dez','Jan','Fev','Mar','Abr','Mai'],
+      datasets: [{
+        label: 'Clientes Ativos',
+        data: [10,11,13,14,16,18],
+        borderColor: '#6c63ff',
+        backgroundColor: 'rgba(108,99,255,.1)',
+        borderWidth: 2.5, fill: true, tension: .4,
+        pointBackgroundColor: '#6c63ff', pointRadius: 4
+      },{
+        label: 'Novos Leads',
+        data: [8,12,15,18,20,24],
+        borderColor: '#00d4aa',
+        backgroundColor: 'rgba(0,212,170,.06)',
+        borderWidth: 2.5, fill: true, tension: .4,
+        pointBackgroundColor: '#00d4aa', pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { boxWidth: 10, padding: 16, font: {size:11} } } },
+      scales: {
+        x: { grid: { color: '#2e3350' } },
+        y: { grid: { color: '#2e3350' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Programas
+  const progs = {};
+  clientes.forEach(c=>progs[c.programa]=(progs[c.programa]||0)+1);
+  new Chart(document.getElementById('chartProgramas'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(progs),
+      datasets: [{
+        data: Object.values(progs),
+        backgroundColor: ['#6c63ff','#00d4aa','#ffd93d','#4d9fff','#fb923c'],
+        borderWidth: 0, hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font:{size:10} } } },
+      cutout: '65%'
+    }
+  });
+
+  // Duração
+  const durs = {};
+  clientes.forEach(c=>durs[c.contrato]=(durs[c.contrato]||0)+1);
+  new Chart(document.getElementById('chartDuracao'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(durs),
+      datasets: [{
+        data: Object.values(durs),
+        backgroundColor: ['#a78bfa','#4d9fff','#00d4aa','#ffd93d'],
+        borderRadius: 8, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#2e3350' }, beginAtZero: true, ticks:{stepSize:1} }
+      }
+    }
+  });
+
+  // Treinos
+  const treinos = {
+    'Em dia': clientes.filter(c=>c.treino==='Em dia').length,
+    'Em andamento': clientes.filter(c=>c.treino==='Em andamento').length,
+    'Desatualizado': clientes.filter(c=>c.treino==='Desatualizado').length,
+  };
+  new Chart(document.getElementById('chartTreinos'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(treinos),
+      datasets: [{
+        data: Object.values(treinos),
+        backgroundColor: ['#00d4aa','#fb923c','#ff6b6b'],
+        borderWidth: 0, hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 10, font:{size:10} } } },
+      cutout: '65%'
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', ()=>{
+  atualizarSelectPrograma();
+  atualizarSelectPeriodo();
+  renderClientes();
+  renderTabela();
+  renderAlertas();
+  renderAlertasDash();
+  renderRenovacoes();
+  renderConfig();
+  renderKpiProtocolo();
+  renderKpiRenovacoes();
+  renderKpiEncerrados();
+  initCharts();
+});
+</script>
+</body>
+</html>
